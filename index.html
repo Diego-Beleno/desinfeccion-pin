@@ -28,28 +28,34 @@
             color: var(--neon); text-align: center; font-size: 22px; font-family: 'Consolas';
         }
 
-        #loading-bar { 
-            display: none; width: 100%; height: 15px; border: 1px solid var(--neon); 
-            margin-top: 20px; position: relative; 
-        }
-        #progress { width: 0%; height: 100%; background: var(--neon); transition: width 0.1s; }
+        #loading-bar { display: none; width: 100%; height: 15px; border: 1px solid var(--neon); margin-top: 20px; }
+        #progress { width: 0%; height: 100%; background: var(--neon); }
 
-        .btn-final {
-            display: none; background: var(--neon); color: #000; border: none;
-            padding: 15px 25px; font-weight: bold; font-family: 'Consolas';
-            cursor: pointer; margin-top: 20px; animation: pulse 1.5s infinite;
+        #log { 
+            display: none; text-align: left; font-size: 9px; margin-top: 15px; 
+            max-height: 80px; overflow: hidden; color: #008822;
         }
-
-        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(0, 255, 65, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 65, 0); } }
         
         .glitch { animation: glitch 0.2s infinite; color: var(--red); }
         @keyframes glitch { 0% { transform: translate(2px,0); } 50% { transform: translate(-2px,1px); } 100% { transform: translate(0,-1px); } }
         
         button#start-btn { background: transparent; border: 1px solid var(--neon); color: var(--neon); padding: 10px; cursor: pointer; }
+
+        /* Pantalla de apagado */
+        #shutdown {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: black; z-index: 1000; color: white; flex-direction: column;
+            align-items: center; justify-content: center; font-size: 14px;
+        }
     </style>
 </head>
 <body>
     <canvas id="matrix-canvas"></canvas>
+
+    <div id="shutdown">
+        <p>SISTEMA REINICIANDO...</p>
+        <div style="width: 20px; height: 20px; border: 2px solid #fff; border-top: 2px solid #000; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+    </div>
 
     <div id="console">
         <div id="header" class="glitch">[ AMENAZA DETECTADA ]</div>
@@ -65,10 +71,10 @@
         </div>
 
         <div id="loading-bar"><div id="progress"></div></div>
+        <div id="log"></div>
         <div id="status">ESPERANDO ACCIÓN...</div>
 
-        <button id="start-btn" onclick="initAudio()">> INICIALIZAR SISTEMA</button>
-        <button class="btn-final" id="btn-reveal" onclick="window.location.href='TU_LINK_DE_UBICACION_AQUI'">VER COORDENADAS FINALES</button>
+        <button id="start-btn" onclick="initAudio()">> INICIALIZAR DESINFECCIÓN</button>
     </div>
 
     <script>
@@ -77,29 +83,28 @@
         const urlParams = new URLSearchParams(window.location.search);
         const rawNombre = (urlParams.get('nombre') || "AGENTE");
 
-        // MATRIX EFFECT
+        // Matrix
         const canvas = document.getElementById('matrix-canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-        const letters = "0101010101010101";
-        const fontSize = 10;
-        const drops = Array(Math.floor(canvas.width/fontSize)).fill(1);
+        const letters = "01";
+        const drops = Array(Math.floor(canvas.width/10)).fill(1);
 
         function drawMatrix() {
             ctx.fillStyle = "rgba(0, 10, 0, 0.05)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "#0f0";
-            for(let i=0; i<drops.length; i++){
-                ctx.fillText(letters[Math.floor(Math.random()*letters.length)], i*fontSize, drops[i]*fontSize);
-                if(drops[i]*fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+            drops.forEach((y, i) => {
+                ctx.fillText(letters[Math.floor(Math.random()*2)], i*10, y*10);
+                if(y*10 > canvas.height && Math.random() > 0.975) drops[i] = 0;
                 drops[i]++;
-            }
+            });
         }
         setInterval(drawMatrix, 35);
 
         function initAudio() {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            speak(rawNombre + ", el sistema ha sido infectado. Ingrese el PIN de seguridad.");
+            speak(rawNombre + ", el virus está extrayendo datos. Ingrese el código de emergencia.");
             document.getElementById('start-btn').style.display = 'none';
         }
 
@@ -122,41 +127,53 @@
             const inputs = document.querySelectorAll('.pin-input');
             let pin = ""; inputs.forEach(i => pin += i.value);
             if(pin.length === 6) {
-                if(pin === CORRECT_PIN) {
-                    startExtraction();
-                } else {
-                    speak("Acceso denegado. Intente de nuevo.");
+                if(pin === CORRECT_PIN) startCleaning();
+                else {
+                    speak("PIN incorrecto. El virus se está duplicando.");
                     inputs.forEach(i => i.value = ""); inputs[0].focus();
                 }
             }
         }
 
-        function startExtraction() {
+        function startCleaning() {
             document.getElementById('pin-box').style.display = 'none';
             document.getElementById('header').classList.remove('glitch');
-            document.getElementById('header').innerText = "[ DESINFECCIÓN EN CURSO ]";
-            document.getElementById('header').style.color = "var(--neon)";
+            document.getElementById('header').innerText = "[ ELIMINANDO MALWARE ]";
             document.getElementById('loading-bar').style.display = 'block';
+            document.getElementById('log').style.display = 'block';
             
+            const logs = [
+                "Localizando troyano...", "Borrando caché infectada...", 
+                "Restaurando kernel...", "Limpiando registro...",
+                "Protegiendo archivos de " + rawNombre + "...", "Desinfección exitosa."
+            ];
+
             let p = 0;
+            let logIdx = 0;
             const interval = setInterval(() => {
-                p += Math.random() * 5;
+                p += Math.random() * 8;
                 if(p >= 100) {
                     p = 100; clearInterval(interval);
-                    finishSite();
+                    setTimeout(reboot, 1500);
                 }
                 document.getElementById('progress').style.width = p + "%";
-                document.getElementById('status').innerText = "BORRANDO VIRUS: " + Math.floor(p) + "%";
-            }, 100);
+                if(p > (logIdx * 20) && logs[logIdx]) {
+                    document.getElementById('log').innerHTML += `> ${logs[logIdx]}<br>`;
+                    logIdx++;
+                }
+            }, 150);
             
-            speak("Eliminando amenazas... Reconstruyendo sectores de memoria.");
+            speak("Código aceptado. Iniciando limpieza profunda del terminal.");
         }
 
-        function finishSite() {
-            document.getElementById('status').innerText = "SISTEMA LIMPIO. ACCESO CONCEDIDO.";
-            document.getElementById('btn-reveal').style.display = 'inline-block';
-            speak("Virus eliminado. Bienvenido, " + rawNombre + ". Presiona el botón para obtener las coordenadas.");
+        function reboot() {
+            speak("Limpieza completada. Reiniciando terminal para aplicar cambios.");
+            document.getElementById('shutdown').style.display = 'flex';
+            setTimeout(() => {
+                document.getElementById('shutdown').innerHTML = "<p>DISPOSITIVO SEGURO</p><p style='font-size:10px'>PUEDES CERRAR ESTA VENTANA</p>";
+            }, 3000);
         }
     </script>
+    <style> @keyframes spin { to { transform: rotate(360deg); } } </style>
 </body>
 </html>
