@@ -12,6 +12,7 @@
             font-family: 'Consolas', monospace; 
             margin: 0; height: 100vh; overflow: hidden;
             display: flex; align-items: center; justify-content: center;
+            transition: background 0.1s;
         }
 
         #matrix-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.15; z-index: 1; }
@@ -31,25 +32,21 @@
         #loading-bar { display: none; width: 100%; height: 15px; border: 1px solid var(--neon); margin-top: 20px; }
         #progress { width: 0%; height: 100%; background: var(--neon); }
 
-        #log { 
-            display: none; text-align: left; font-size: 9px; margin-top: 15px; 
-            max-height: 80px; overflow: hidden; color: #008822;
-        }
+        #log { display: none; text-align: left; font-size: 9px; margin-top: 15px; max-height: 80px; overflow: hidden; color: #008822; }
         
-        .glitch { animation: glitch 0.2s infinite; color: var(--red); }
-        @keyframes glitch { 0% { transform: translate(2px,0); } 50% { transform: translate(-2px,1px); } 100% { transform: translate(0,-1px); } }
+        .error-glitch { animation: shake 0.1s infinite; background: var(--red) !important; color: white !important; }
+        @keyframes shake { 0% { transform: translate(5px, 5px); } 20% { transform: translate(-5px, 0); } 40% { transform: translate(5px, -5px); } 100% { transform: translate(0,0); } }
         
-        button#start-btn { background: transparent; border: 1px solid var(--neon); color: var(--neon); padding: 10px; cursor: pointer; }
-
-        /* Pantalla de apagado */
         #shutdown {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
             background: black; z-index: 1000; color: white; flex-direction: column;
             align-items: center; justify-content: center; font-size: 14px;
         }
+        
+        .hint { font-size: 8px; opacity: 0.5; margin-top: 10px; }
     </style>
 </head>
-<body>
+<body onclick="initAudio()">
     <canvas id="matrix-canvas"></canvas>
 
     <div id="shutdown">
@@ -58,36 +55,35 @@
     </div>
 
     <div id="console">
-        <div id="header" class="glitch">[ AMENAZA DETECTADA ]</div>
-        <p id="instruction">INGRESE PIN DE DESINFECCIÓN:</p>
+        <div id="header" style="font-weight: bold;">[ AMENAZA DETECTADA ]</div>
+        <p id="instruction">INGRESE PIN Y PRESIONE ENTER:</p>
 
         <div class="pin-container" id="pin-box">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 0)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 1)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 2)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 3)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 4)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="validatePin()">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 0)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 1)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 2)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 3)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 4)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 5)" onkeydown="checkEnter(event)">
         </div>
 
         <div id="loading-bar"><div id="progress"></div></div>
         <div id="log"></div>
-        <div id="status">ESPERANDO ACCIÓN...</div>
-
-        <button id="start-btn" onclick="initAudio()">> INICIALIZAR DESINFECCIÓN</button>
+        <div id="status">ESPERANDO CÓDIGO...</div>
+        <div class="hint">TOQUE LA PANTALLA PARA ACTIVAR AUDIO</div>
     </div>
 
     <script>
         let audioCtx;
         const CORRECT_PIN = "070207";
         const urlParams = new URLSearchParams(window.location.search);
-        const rawNombre = (urlParams.get('nombre') || "AGENTE");
+        const rawNombre = (urlParams.get('nombre') || "USUARIO");
+        let voiceStarted = false;
 
-        // Matrix
+        // Matrix Effect
         const canvas = document.getElementById('matrix-canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-        const letters = "01";
         const drops = Array(Math.floor(canvas.width/10)).fill(1);
 
         function drawMatrix() {
@@ -95,7 +91,7 @@
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "#0f0";
             drops.forEach((y, i) => {
-                ctx.fillText(letters[Math.floor(Math.random()*2)], i*10, y*10);
+                ctx.fillText(Math.floor(Math.random()*2), i*10, y*10);
                 if(y*10 > canvas.height && Math.random() > 0.975) drops[i] = 0;
                 drops[i]++;
             });
@@ -103,9 +99,21 @@
         setInterval(drawMatrix, 35);
 
         function initAudio() {
+            if (voiceStarted) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            speak(rawNombre + ", el virus está extrayendo datos. Ingrese el código de emergencia.");
-            document.getElementById('start-btn').style.display = 'none';
+            speak(rawNombre + ", el virus está extrayendo datos. Ingrese el código de emergencia y presione enter.");
+            voiceStarted = true;
+            document.querySelector('.hint').style.display = 'none';
+        }
+
+        function playBeep(f) {
+            if(!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const g = audioCtx.createGain();
+            osc.frequency.value = f;
+            g.gain.value = 0.1;
+            osc.connect(g); g.connect(audioCtx.destination);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
         }
 
         function speak(t) {
@@ -115,65 +123,74 @@
             window.speechSynthesis.speak(u);
         }
 
-        function moveNext(el, i) {
+        function handleInput(el, i) {
             if(el.value.length >= 1) {
                 el.value = el.value.slice(0,1);
+                playBeep(600);
                 const next = document.querySelectorAll('.pin-input')[i+1];
                 if(next) next.focus();
             }
         }
 
+        function checkEnter(e) {
+            if(e.key === "Enter") validatePin();
+        }
+
         function validatePin() {
             const inputs = document.querySelectorAll('.pin-input');
             let pin = ""; inputs.forEach(i => pin += i.value);
-            if(pin.length === 6) {
-                if(pin === CORRECT_PIN) startCleaning();
-                else {
-                    speak("PIN incorrecto. El virus se está duplicando.");
-                    inputs.forEach(i => i.value = ""); inputs[0].focus();
-                }
+            
+            if(pin === CORRECT_PIN) {
+                startCleaning();
+            } else {
+                triggerError();
             }
+        }
+
+        function triggerError() {
+            document.body.classList.add('error-glitch');
+            playBeep(100);
+            speak("Error de autenticación. Amenaza incrementada.");
+            
+            setTimeout(() => {
+                document.body.classList.remove('error-glitch');
+                const inputs = document.querySelectorAll('.pin-input');
+                inputs.forEach(i => i.value = "");
+                inputs[0].focus();
+            }, 500);
         }
 
         function startCleaning() {
             document.getElementById('pin-box').style.display = 'none';
-            document.getElementById('header').classList.remove('glitch');
             document.getElementById('header').innerText = "[ ELIMINANDO MALWARE ]";
             document.getElementById('loading-bar').style.display = 'block';
             document.getElementById('log').style.display = 'block';
             
-            const logs = [
-                "Localizando troyano...", "Borrando caché infectada...", 
-                "Restaurando kernel...", "Limpiando registro...",
-                "Protegiendo archivos de " + rawNombre + "...", "Desinfección exitosa."
-            ];
-
-            let p = 0;
-            let logIdx = 0;
+            const logs = ["Caché infectada...", "Kernel restaurado...", "Registro limpio...", "Acceso seguro."];
+            let p = 0, logIdx = 0;
+            
             const interval = setInterval(() => {
-                p += Math.random() * 8;
+                p += 5;
                 if(p >= 100) {
-                    p = 100; clearInterval(interval);
-                    setTimeout(reboot, 1500);
+                    clearInterval(interval);
+                    setTimeout(reboot, 1000);
                 }
                 document.getElementById('progress').style.width = p + "%";
-                if(p > (logIdx * 20) && logs[logIdx]) {
+                if(p % 25 === 0 && logs[logIdx]) {
                     document.getElementById('log').innerHTML += `> ${logs[logIdx]}<br>`;
                     logIdx++;
                 }
-            }, 150);
-            
-            speak("Código aceptado. Iniciando limpieza profunda del terminal.");
+            }, 100);
+            speak("Código aceptado. Ejecutando purga del sistema.");
         }
 
         function reboot() {
-            speak("Limpieza completada. Reiniciando terminal para aplicar cambios.");
             document.getElementById('shutdown').style.display = 'flex';
+            speak("Sistema limpio. Reiniciando.");
             setTimeout(() => {
-                document.getElementById('shutdown').innerHTML = "<p>DISPOSITIVO SEGURO</p><p style='font-size:10px'>PUEDES CERRAR ESTA VENTANA</p>";
+                document.getElementById('shutdown').innerHTML = "<p>DISPOSITIVO SEGURO</p><p style='font-size:10px'>TU ACCESO HA SIDO RESTABLECIDO</p>";
             }, 3000);
         }
     </script>
-    <style> @keyframes spin { to { transform: rotate(360deg); } } </style>
 </body>
 </html>
