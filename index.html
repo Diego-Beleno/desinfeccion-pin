@@ -12,9 +12,10 @@
             font-family: 'Consolas', monospace; 
             margin: 0; height: 100vh; overflow: hidden;
             display: flex; align-items: flex-start; justify-content: center;
-            padding-top: 5vh;
+            padding-top: 5vh; transition: background 0.3s;
         }
 
+        /* Scanlines */
         body::after {
             content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
             background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
@@ -27,9 +28,9 @@
             border: 1px solid var(--dim-neon); padding: 15px; width: 85%; max-width: 320px;
             background: rgba(0, 5, 0, 0.95); box-shadow: 0 0 20px rgba(0, 255, 65, 0.1);
             position: relative; z-index: 10; text-align: center;
+            transition: all 0.2s;
         }
 
-        /* Pantalla de visualización del PIN */
         #pin-display {
             background: rgba(0, 20, 0, 0.5); border: 1px solid var(--dim-neon);
             margin: 10px 0; padding: 10px; font-size: 24px; letter-spacing: 10px;
@@ -37,11 +38,7 @@
             text-shadow: 0 0 10px var(--neon);
         }
 
-        /* Teclado Táctil Estilo Terminal */
-        .numpad {
-            display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;
-            margin-top: 15px; padding: 10px;
-        }
+        .numpad { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 15px; padding: 10px; }
 
         .num-btn {
             background: transparent; border: 1px solid var(--neon);
@@ -50,23 +47,38 @@
             user-select: none; -webkit-tap-highlight-color: transparent;
         }
 
-        .num-btn:active { background: var(--neon); color: var(--bg); box-shadow: 0 0 15px var(--neon); }
+        .num-btn:active { background: var(--neon); color: var(--bg); }
 
         .btn-clear { border-color: var(--red); color: var(--red); }
-        .btn-clear:active { background: var(--red); color: white; box-shadow: 0 0 15px var(--red); }
 
-        /* Barra de carga y logs */
+        /* --- EFECTOS CRÍTICOS --- */
+        
+        /* ERROR: Glitch y Rojo Total */
+        .critical-glitch { animation: glitch-shake 0.1s infinite; background: var(--red) !important; }
+        .critical-glitch #console { background: rgba(255, 0, 0, 0.8); border-color: #fff; transform: scale(1.05); }
+        .critical-glitch #console * { color: white !important; text-shadow: 2px 2px #000; }
+
+        /* ÉXITO: Destello Verde Total */
+        .success-flash { animation: green-pulse 0.6s ease-out; }
+        .success-flash #console { border-color: #fff; box-shadow: 0 0 50px var(--neon); }
+
+        @keyframes glitch-shake {
+            0% { transform: translate(0); filter: hue-rotate(0deg); }
+            25% { transform: translate(5px, -5px); filter: invert(1); }
+            50% { transform: translate(-5px, 5px); }
+            100% { transform: translate(2px, -2px); }
+        }
+
+        @keyframes green-pulse {
+            0% { background: var(--neon); }
+            100% { background: var(--bg); }
+        }
+
         #loading-wrapper { display: none; margin-top: 15px; text-align: left; }
         .tech-data { font-size: 9px; color: #008822; margin-bottom: 5px; }
         #loading-bar { width: 100%; height: 6px; border: 1px solid var(--dim-neon); position: relative; }
         #progress { width: 0%; height: 100%; background: var(--neon); box-shadow: 0 0 8px var(--neon); }
         #log { font-size: 8px; color: #006600; margin-top: 10px; height: 70px; overflow: hidden; border-top: 1px solid #002200; padding-top: 5px; }
-
-        /* Animaciones */
-        .critical-glitch { animation: flash-red 0.1s infinite; }
-        .success-flash { animation: flash-green 0.5s ease-out; }
-        @keyframes flash-red { 0% { background: rgba(255, 0, 0, 0.3); } 100% { background: transparent; } }
-        @keyframes flash-green { 0% { background: rgba(0, 255, 65, 0.4); } 100% { background: transparent; } }
 
         #shutdown {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
@@ -111,7 +123,6 @@
             <div id="loading-bar"><div id="progress"></div></div>
             <div id="log"></div>
         </div>
-
         <div id="status" style="font-size: 9px; margin-top: 10px; opacity: 0.6;">INPUT_REQUIRED</div>
     </div>
 
@@ -144,7 +155,7 @@
         function initAudio() {
             if (voiceStarted) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            speak(`Terminal de control activa. Identidad detectada: ${rawNombre}. Ingrese código.`);
+            speak(`Acceso restringido. Identidad: ${rawNombre}. Ingrese código.`);
             voiceStarted = true;
         }
 
@@ -181,8 +192,7 @@
         }
 
         function updateDisplay() {
-            const display = document.getElementById('pin-display');
-            display.innerText = "*".repeat(currentPin.length);
+            document.getElementById('pin-display').innerText = "*".repeat(currentPin.length);
         }
 
         function validatePin() {
@@ -199,7 +209,7 @@
         function triggerGlitch() {
             document.body.classList.add('critical-glitch');
             playSound(100, 'sawtooth', 0.4);
-            speak("Código incorrecto.");
+            speak("Error de acceso.");
             setTimeout(() => {
                 document.body.classList.remove('critical-glitch');
                 clearPin();
@@ -212,45 +222,39 @@
             document.getElementById('loading-wrapper').style.display = 'block';
             
             const logs = [
-                "> INITIALIZING CLEANUP...",
-                "> DELETING TEMP_CACHE...",
-                "> OVERWRITING REGISTRY...",
-                "> PURGING LOG_FILES...",
-                "> OPTIMIZING KERNEL...",
-                "> SECURITY_CHECK: OK",
-                "> ACCESS_GRANTED: " + rawNombre
+                "> INITIALIZING...", "> WIPING CACHE...", "> PURGING LOGS...", "> ACCESS_GRANTED: " + rawNombre
             ];
 
             let p = 0; let logIdx = 0;
             const interval = setInterval(() => {
-                p += Math.random() * 1.5;
+                p += 2;
                 if(p >= 100) {
                     p = 100; clearInterval(interval);
-                    setTimeout(finalize, 1500);
+                    setTimeout(finalize, 1000);
                 }
                 document.getElementById('progress').style.width = p + "%";
-                document.getElementById('sector-info').innerText = `PURGING_SECTOR: 0x${Math.floor(p*512).toString(16).toUpperCase()}`;
-                
-                if(p > (logIdx * 14) && logs[logIdx]) {
+                document.getElementById('sector-info').innerText = `SECTOR: 0x${Math.floor(p*512).toString(16).toUpperCase()}`;
+                if(p > (logIdx * 25) && logs[logIdx]) {
                     const logLine = document.createElement('div');
                     logLine.innerText = logs[logIdx];
                     document.getElementById('log').appendChild(logLine);
                     logIdx++;
                     playSound(1000, 'sine', 0.02, 0.05);
                 }
-            }, 100);
-            speak("Acceso concedido. Limpiando sistema.");
+            }, 50);
         }
 
         function finalize() {
             document.getElementById('shutdown').style.display = 'flex';
-            speak("Limpieza finalizada. Bienvenido, " + rawNombre);
+            speak("Bienvenido, " + rawNombre);
             setTimeout(() => {
-                document.getElementById('shutdown-text').innerHTML = "SYSTEM_OPTIMIZED<br>AGENT: " + rawNombre;
+                document.getElementById('shutdown-text').innerHTML = "SYSTEM_READY<br>AGENT: " + rawNombre;
                 document.getElementById('shutdown').style.color = "var(--neon)";
-            }, 3000);
+            }, 2000);
         }
     </script>
-    <style> @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } } </style>
+    <style> 
+        @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } } 
+    </style>
 </body>
 </html>
