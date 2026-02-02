@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TERMINAL_DECRYPTOR</title>
+    <title>ROOT_DECRYPT_PROTOCOL</title>
     <style>
         :root { --neon: #00ff41; --bg: #000a00; --red: #ff0000; --dim-neon: #004400; }
         
@@ -12,51 +12,65 @@
             font-family: 'Consolas', monospace; 
             margin: 0; height: 100vh; overflow: hidden;
             display: flex; align-items: center; justify-content: center;
-            transition: background 0.1s;
         }
 
-        #matrix-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.15; z-index: 1; }
+        /* Scanline y Glitch persistente */
+        body::after {
+            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.1) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.03), rgba(0, 255, 0, 0.01), rgba(0, 0, 255, 0.03));
+            z-index: 100; background-size: 100% 2px, 3px 100%; pointer-events: none;
+        }
+
+        #matrix-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.12; z-index: 1; }
 
         #console { 
-            border: 2px solid var(--dim-neon); padding: 30px; width: 85%; max-width: 400px;
-            background: rgba(0, 10, 0, 0.9); box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+            border: 1px solid var(--dim-neon); padding: 30px; width: 85%; max-width: 420px;
+            background: rgba(0, 5, 0, 0.95); box-shadow: 0 0 30px rgba(0, 255, 65, 0.1);
             position: relative; z-index: 10; text-align: center;
         }
 
-        .pin-container { display: flex; gap: 8px; justify-content: center; margin: 20px 0; }
+        .pin-container { display: flex; gap: 8px; justify-content: center; margin: 25px 0; }
         .pin-input {
-            width: 35px; height: 50px; background: #000; border: 2px solid var(--neon);
-            color: var(--neon); text-align: center; font-size: 22px; font-family: 'Consolas';
+            width: 38px; height: 55px; background: transparent; border: 1px solid var(--neon);
+            color: var(--neon); text-align: center; font-size: 24px; font-family: 'Consolas';
+            text-shadow: 0 0 5px var(--neon);
         }
 
-        #loading-bar { display: none; width: 100%; height: 15px; border: 1px solid var(--neon); margin-top: 20px; }
-        #progress { width: 0%; height: 100%; background: var(--neon); }
+        /* Barra de carga técnica */
+        #loading-wrapper { display: none; margin-top: 25px; text-align: left; }
+        .tech-data { font-size: 9px; color: #008822; margin-bottom: 5px; height: 12px; }
+        #loading-bar { width: 100%; height: 8px; border: 1px solid var(--dim-neon); position: relative; }
+        #progress { width: 0%; height: 100%; background: var(--neon); box-shadow: 0 0 10px var(--neon); transition: width 0.3s ease; }
 
-        #log { display: none; text-align: left; font-size: 9px; margin-top: 15px; max-height: 80px; overflow: hidden; color: #008822; }
-        
-        .error-glitch { animation: shake 0.1s infinite; background: var(--red) !important; color: white !important; }
-        @keyframes shake { 0% { transform: translate(5px, 5px); } 20% { transform: translate(-5px, 0); } 40% { transform: translate(5px, -5px); } 100% { transform: translate(0,0); } }
-        
+        #log { font-size: 9px; color: #006600; margin-top: 15px; height: 100px; overflow: hidden; line-height: 1.4; border-top: 1px solid #002200; padding-top: 10px; }
+
+        /* Animaciones de Glitch Crítico */
+        .critical-glitch { animation: flash 0.1s infinite, noise 0.2s infinite; }
+        @keyframes flash { 0% { background: rgba(255, 0, 0, 0.4); } 100% { background: transparent; } }
+        @keyframes noise { 0% { transform: translate(2px, 2px); } 50% { transform: translate(-3px, -1px); filter: hue-rotate(90deg); } 100% { transform: translate(1px, -2px); } }
+
         #shutdown {
             display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-            background: black; z-index: 1000; color: white; flex-direction: column;
-            align-items: center; justify-content: center; font-size: 14px;
+            background: black; z-index: 1000; color: #fff; flex-direction: column;
+            align-items: center; justify-content: center; font-family: 'Courier New', monospace;
         }
-        
-        .hint { font-size: 8px; opacity: 0.5; margin-top: 10px; }
+
+        .hint { font-size: 8px; opacity: 0.4; margin-top: 15px; letter-spacing: 2px; }
     </style>
 </head>
 <body onclick="initAudio()">
     <canvas id="matrix-canvas"></canvas>
 
     <div id="shutdown">
-        <p>SISTEMA REINICIANDO...</p>
-        <div style="width: 20px; height: 20px; border: 2px solid #fff; border-top: 2px solid #000; border-radius: 50%; animation: spin 1s linear infinite;"></div>
+        <p id="shutdown-text">REBOOTING SYSTEM...</p>
+        <div style="width: 40px; height: 2px; background: #333; overflow: hidden;">
+            <div style="width: 100%; height: 100%; background: #fff; animation: loading 2s infinite;"></div>
+        </div>
     </div>
 
     <div id="console">
-        <div id="header" style="font-weight: bold;">[ AMENAZA DETECTADA ]</div>
-        <p id="instruction">INGRESE PIN Y PRESIONE ENTER:</p>
+        <div id="header" style="letter-spacing: 4px;">[ ENCRYPTION_LOCK ]</div>
+        <div id="instruction" style="font-size: 10px; margin-top: 10px; opacity: 0.8;">SECURITY_OVERRIDE_REQUIRED</div>
 
         <div class="pin-container" id="pin-box">
             <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 0)">
@@ -64,133 +78,161 @@
             <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 2)">
             <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 3)">
             <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 4)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 5)" onkeydown="checkEnter(event)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="handleInput(this, 5)">
         </div>
 
-        <div id="loading-bar"><div id="progress"></div></div>
-        <div id="log"></div>
-        <div id="status">ESPERANDO CÓDIGO...</div>
-        <div class="hint">TOQUE LA PANTALLA PARA ACTIVAR AUDIO</div>
+        <div id="loading-wrapper">
+            <div class="tech-data" id="sector-info">ANALYZING SECTOR: 0x0000</div>
+            <div id="loading-bar"><div id="progress"></div></div>
+            <div id="log"></div>
+        </div>
+
+        <div id="status" style="font-size: 10px; margin-top: 15px;">WAITING_FOR_INPUT...</div>
+        <div class="hint">STATUS: UNINITIALIZED - TOUCH TO START</div>
     </div>
 
     <script>
         let audioCtx;
         const CORRECT_PIN = "070207";
         const urlParams = new URLSearchParams(window.location.search);
-        const rawNombre = (urlParams.get('nombre') || "USUARIO");
+        const rawNombre = (urlParams.get('nombre') || "USER_INV").toUpperCase();
         let voiceStarted = false;
 
-        // Matrix Effect
+        // Matrix Background Táctico
         const canvas = document.getElementById('matrix-canvas');
         const ctx = canvas.getContext('2d');
         canvas.width = window.innerWidth; canvas.height = window.innerHeight;
-        const drops = Array(Math.floor(canvas.width/10)).fill(1);
+        const drops = Array(Math.floor(canvas.width/12)).fill(1);
 
         function drawMatrix() {
-            ctx.fillStyle = "rgba(0, 10, 0, 0.05)";
+            ctx.fillStyle = "rgba(0, 10, 0, 0.1)";
             ctx.fillRect(0, 0, canvas.width, canvas.height);
             ctx.fillStyle = "#0f0";
+            ctx.font = "10px monospace";
             drops.forEach((y, i) => {
-                ctx.fillText(Math.floor(Math.random()*2), i*10, y*10);
-                if(y*10 > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                const text = Math.random() > 0.5 ? "0" : "1";
+                ctx.fillText(text, i*12, y*12);
+                if(y*12 > canvas.height && Math.random() > 0.98) drops[i] = 0;
                 drops[i]++;
             });
         }
-        setInterval(drawMatrix, 35);
+        setInterval(drawMatrix, 50);
 
         function initAudio() {
             if (voiceStarted) return;
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            speak(rawNombre + ", el virus está extrayendo datos. Ingrese el código de emergencia y presione enter.");
+            speak(`Alerta de seguridad. Acceso restringido para ${rawNombre}. Ingrese el código raíz ahora.`);
             voiceStarted = true;
             document.querySelector('.hint').style.display = 'none';
         }
 
-        function playBeep(f) {
+        function playSound(freq, type, dur) {
             if(!audioCtx) return;
-            const osc = audioCtx.createOscillator();
+            const o = audioCtx.createOscillator();
             const g = audioCtx.createGain();
-            osc.frequency.value = f;
+            o.type = type; o.frequency.value = freq;
             g.gain.value = 0.1;
-            osc.connect(g); g.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+            o.connect(g); g.connect(audioCtx.destination);
+            o.start(); o.stop(audioCtx.currentTime + dur);
         }
 
         function speak(t) {
             window.speechSynthesis.cancel();
             const u = new SpeechSynthesisUtterance(t);
-            u.lang = 'es-MX'; u.rate = 0.9;
+            u.lang = 'es-MX'; u.rate = 1.1; u.pitch = 0.8;
             window.speechSynthesis.speak(u);
         }
 
         function handleInput(el, i) {
             if(el.value.length >= 1) {
                 el.value = el.value.slice(0,1);
-                playBeep(600);
-                const next = document.querySelectorAll('.pin-input')[i+1];
-                if(next) next.focus();
+                playSound(800, 'square', 0.05);
+                const inputs = document.querySelectorAll('.pin-input');
+                if(inputs[i+1]) inputs[i+1].focus();
+                
+                // Auto-validar al llegar al 6to
+                if(i === 5) validatePin();
             }
-        }
-
-        function checkEnter(e) {
-            if(e.key === "Enter") validatePin();
         }
 
         function validatePin() {
             const inputs = document.querySelectorAll('.pin-input');
-            let pin = ""; inputs.forEach(i => pin += i.value);
+            let pin = ""; inputs.forEach(inp => pin += inp.value);
             
             if(pin === CORRECT_PIN) {
-                startCleaning();
+                startDeepScan();
             } else {
-                triggerError();
+                triggerGlitch();
             }
         }
 
-        function triggerError() {
-            document.body.classList.add('error-glitch');
-            playBeep(100);
-            speak("Error de autenticación. Amenaza incrementada.");
-            
+        function triggerGlitch() {
+            document.body.classList.add('critical-glitch');
+            playSound(100, 'sawtooth', 0.4);
+            speak("Error de integridad. El sistema se está corrompiendo.");
             setTimeout(() => {
-                document.body.classList.remove('error-glitch');
+                document.body.classList.remove('critical-glitch');
                 const inputs = document.querySelectorAll('.pin-input');
-                inputs.forEach(i => i.value = "");
+                inputs.forEach(inp => inp.value = "");
                 inputs[0].focus();
-            }, 500);
+            }, 800);
         }
 
-        function startCleaning() {
+        function startDeepScan() {
             document.getElementById('pin-box').style.display = 'none';
-            document.getElementById('header').innerText = "[ ELIMINANDO MALWARE ]";
-            document.getElementById('loading-bar').style.display = 'block';
-            document.getElementById('log').style.display = 'block';
+            document.getElementById('instruction').style.display = 'none';
+            document.getElementById('header').innerText = "[ DEEP_CLEAN_INITIATED ]";
+            document.getElementById('loading-wrapper').style.display = 'block';
             
-            const logs = ["Caché infectada...", "Kernel restaurado...", "Registro limpio...", "Acceso seguro."];
-            let p = 0, logIdx = 0;
+            const logs = [
+                "> INITIALIZING HEURISTIC SCAN...",
+                "> TARGETING: ROOT_MALWARE_X26",
+                "> DELETING CORRUPTED BLOCKS...",
+                "> RESTORING NTFS_TABLE...",
+                "> FLUSHING CPU_CACHE...",
+                "> INJECTING SECURE_PROTOCOL...",
+                "> SYSTEM_INTEGRITY: 100%",
+                "> ACCESS_GRANTED: " + rawNombre
+            ];
+
+            let p = 0;
+            let logIdx = 0;
             
             const interval = setInterval(() => {
-                p += 5;
+                // Carga más lenta para realismo
+                p += Math.random() * 1.5;
                 if(p >= 100) {
+                    p = 100;
                     clearInterval(interval);
-                    setTimeout(reboot, 1000);
+                    setTimeout(finalize, 1500);
                 }
+                
                 document.getElementById('progress').style.width = p + "%";
-                if(p % 25 === 0 && logs[logIdx]) {
-                    document.getElementById('log').innerHTML += `> ${logs[logIdx]}<br>`;
+                document.getElementById('sector-info').innerText = `ANALYZING SECTOR: 0x${Math.floor(p*342).toString(16).toUpperCase()}`;
+                
+                if(p > (logIdx * 12.5) && logs[logIdx]) {
+                    const logLine = document.createElement('div');
+                    logLine.innerText = logs[logIdx];
+                    document.getElementById('log').appendChild(logLine);
                     logIdx++;
+                    playSound(400, 'sine', 0.02);
                 }
             }, 100);
-            speak("Código aceptado. Ejecutando purga del sistema.");
+            
+            speak("Código de raíz aceptado. Iniciando purga profunda de sectores. No apague el dispositivo.");
         }
 
-        function reboot() {
+        function finalize() {
             document.getElementById('shutdown').style.display = 'flex';
-            speak("Sistema limpio. Reiniciando.");
+            speak("Purga completada. Re-estableciendo parámetros originales. Bienvenido.");
             setTimeout(() => {
-                document.getElementById('shutdown').innerHTML = "<p>DISPOSITIVO SEGURO</p><p style='font-size:10px'>TU ACCESO HA SIDO RESTABLECIDO</p>";
+                document.getElementById('shutdown-text').innerText = "SYSTEM_CLEAN // USER: " + rawNombre;
+                document.getElementById('shutdown').style.color = "var(--neon)";
             }, 3000);
         }
     </script>
+    <style> 
+        @keyframes loading { 0% { transform: translateX(-100%); } 100% { transform: translateX(100%); } }
+    </style>
 </body>
 </html>
