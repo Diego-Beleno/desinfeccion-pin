@@ -3,147 +3,160 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>TERMINAL_DESINFECTION_PROTOCOL</title>
+    <title>TERMINAL_DECRYPTOR</title>
     <style>
-        :root { --neon: #00ff41; --bg: #000a00; --white: #e0e0e0; --red: #ff0000; --dim-neon: #004400; }
+        :root { --neon: #00ff41; --bg: #000a00; --red: #ff0000; --dim-neon: #004400; }
         
-        body::before {
-            content: " "; display: block; position: absolute; top: 0; left: 0; bottom: 0; right: 0;
-            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
-            z-index: 100; background-size: 100% 2px, 3px 100%; pointer-events: none;
-        }
-
         body { 
             background: var(--bg); color: var(--neon); 
-            font-family: 'Consolas', 'Courier New', monospace; 
-            padding: 10px; margin: 0; height: 100vh; overflow: hidden;
-            font-size: 11px; transition: background 0.3s;
+            font-family: 'Consolas', monospace; 
+            margin: 0; height: 100vh; overflow: hidden;
+            display: flex; align-items: center; justify-content: center;
         }
+
+        #matrix-canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0.15; z-index: 1; }
 
         #console { 
-            border: 2px solid var(--dim-neon); padding: 20px; height: 90vh; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center;
-            box-shadow: inset 0 0 50px #000; position: relative;
+            border: 2px solid var(--dim-neon); padding: 30px; width: 85%; max-width: 400px;
+            background: rgba(0, 10, 0, 0.9); box-shadow: 0 0 20px rgba(0, 255, 65, 0.2);
+            position: relative; z-index: 10; text-align: center;
         }
 
-        .line { margin-bottom: 10px; white-space: pre-wrap; text-transform: uppercase; text-align: center; }
-        .red { color: var(--red); font-weight: bold; text-shadow: 0 0 10px var(--red); }
-        
-        /* PIN Estilos */
-        .pin-container { display: flex; gap: 8px; margin: 30px 0; }
+        .pin-container { display: flex; gap: 8px; justify-content: center; margin: 20px 0; }
         .pin-input {
-            width: 40px; height: 55px; background: #000; border: 2px solid var(--neon);
-            color: var(--neon); text-align: center; font-size: 24px; font-family: 'Consolas', monospace;
-            box-shadow: 0 0 10px var(--dim-neon);
+            width: 35px; height: 50px; background: #000; border: 2px solid var(--neon);
+            color: var(--neon); text-align: center; font-size: 22px; font-family: 'Consolas';
         }
-        .pin-input:focus { outline: none; border-color: #fff; box-shadow: 0 0 15px var(--neon); }
 
-        #status-msg { font-size: 12px; font-weight: bold; margin-top: 20px; height: 40px; }
+        #loading-bar { 
+            display: none; width: 100%; height: 15px; border: 1px solid var(--neon); 
+            margin-top: 20px; position: relative; 
+        }
+        #progress { width: 0%; height: 100%; background: var(--neon); transition: width 0.1s; }
+
+        .btn-final {
+            display: none; background: var(--neon); color: #000; border: none;
+            padding: 15px 25px; font-weight: bold; font-family: 'Consolas';
+            cursor: pointer; margin-top: 20px; animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(0, 255, 65, 0.7); } 70% { box-shadow: 0 0 0 15px rgba(0, 255, 65, 0); } 100% { box-shadow: 0 0 0 0 rgba(0, 255, 65, 0); } }
         
-        .bg-red { background: #400 !important; }
-        .bg-green { background: #030 !important; }
-        .glitch-active { animation: glitch 0.05s infinite; }
-        @keyframes glitch { 0% { transform: translate(1px, 0); } 50% { transform: translate(-1px, 1px); } 100% { transform: translate(0, -1px); } }
-
-        button { 
-            background: transparent; border: 1px solid var(--neon); color: var(--neon);
-            padding: 10px; cursor: pointer; font-family: 'Consolas'; margin-top: 20px;
-        }
+        .glitch { animation: glitch 0.2s infinite; color: var(--red); }
+        @keyframes glitch { 0% { transform: translate(2px,0); } 50% { transform: translate(-2px,1px); } 100% { transform: translate(0,-1px); } }
+        
+        button#start-btn { background: transparent; border: 1px solid var(--neon); color: var(--neon); padding: 10px; cursor: pointer; }
     </style>
 </head>
-<body class="glitch-active bg-red">
-    <div id="console">
-        <div class="line red" style="font-size: 18px;">[ SISTEMA COMPROMETIDO ]</div>
-        <div id="terminal-text" class="line">PROTOCOLO DE DESINFECCIÓN REQUERIDO.<br>INGRESE EL CÓDIGO DE 6 DÍGITOS:</div>
+<body>
+    <canvas id="matrix-canvas"></canvas>
 
-        <div class="pin-container">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" maxlength="1" oninput="moveNext(this, 1)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" maxlength="1" oninput="moveNext(this, 2)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" maxlength="1" oninput="moveNext(this, 3)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" maxlength="1" oninput="moveNext(this, 4)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" maxlength="1" oninput="moveNext(this, 5)">
-            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" maxlength="1" oninput="validatePin()">
+    <div id="console">
+        <div id="header" class="glitch">[ AMENAZA DETECTADA ]</div>
+        <p id="instruction">INGRESE PIN DE DESINFECCIÓN:</p>
+
+        <div class="pin-container" id="pin-box">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 0)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 1)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 2)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 3)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="moveNext(this, 4)">
+            <input type="number" class="pin-input" pattern="\d*" inputmode="numeric" oninput="validatePin()">
         </div>
 
-        <div id="status-msg" class="red">ESPERANDO CÓDIGO...</div>
-        
-        <button onclick="initAudio()">> ACTIVAR_VOZ_Y_AUDIO</button>
-        <div style="font-size: 8px; margin-top: 40px; opacity: 0.5;">SECURE_DECRYPT_V26 - DIEGO BELEÑO</div>
+        <div id="loading-bar"><div id="progress"></div></div>
+        <div id="status">ESPERANDO ACCIÓN...</div>
+
+        <button id="start-btn" onclick="initAudio()">> INICIALIZAR SISTEMA</button>
+        <button class="btn-final" id="btn-reveal" onclick="window.location.href='TU_LINK_DE_UBICACION_AQUI'">VER COORDENADAS FINALES</button>
     </div>
 
     <script>
         let audioCtx;
         const CORRECT_PIN = "070207";
         const urlParams = new URLSearchParams(window.location.search);
-        const rawNombre = (urlParams.get('nombre') || "USUARIO");
+        const rawNombre = (urlParams.get('nombre') || "AGENTE");
+
+        // MATRIX EFFECT
+        const canvas = document.getElementById('matrix-canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+        const letters = "0101010101010101";
+        const fontSize = 10;
+        const drops = Array(Math.floor(canvas.width/fontSize)).fill(1);
+
+        function drawMatrix() {
+            ctx.fillStyle = "rgba(0, 10, 0, 0.05)";
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = "#0f0";
+            for(let i=0; i<drops.length; i++){
+                ctx.fillText(letters[Math.floor(Math.random()*letters.length)], i*fontSize, drops[i]*fontSize);
+                if(drops[i]*fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 35);
 
         function initAudio() {
             audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const msg = "SISTEMA BLOQUEADO. " + rawNombre + ", INGRESE EL PIN DE SEIS DÍGITOS PARA ELIMINAR EL VIRUS.";
-            speak(msg);
-            event.target.style.display = 'none';
+            speak(rawNombre + ", el sistema ha sido infectado. Ingrese el PIN de seguridad.");
+            document.getElementById('start-btn').style.display = 'none';
         }
 
-        function playSound(freq, duration, type='sawtooth', vol=0.1) {
-            if(!audioCtx) return;
-            const osc = audioCtx.createOscillator();
-            const gain = audioCtx.createGain();
-            osc.type = type;
-            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(vol, audioCtx.currentTime);
-            osc.connect(gain);
-            gain.connect(audioCtx.destination);
-            osc.start();
-            osc.stop(audioCtx.currentTime + duration);
-        }
-
-        function speak(text) {
+        function speak(t) {
             window.speechSynthesis.cancel();
-            const utterance = new SpeechSynthesisUtterance(text);
-            utterance.lang = 'es-MX';
-            utterance.rate = 1.0;
-            window.speechSynthesis.speak(utterance);
+            const u = new SpeechSynthesisUtterance(t);
+            u.lang = 'es-MX'; u.rate = 0.9;
+            window.speechSynthesis.speak(u);
         }
 
-        function moveNext(el, nextIndex) {
-            if (el.value.length >= 1) {
-                el.value = el.value.slice(0, 1);
-                document.querySelectorAll('.pin-input')[nextIndex].focus();
-                playSound(400, 0.05, 'sine');
+        function moveNext(el, i) {
+            if(el.value.length >= 1) {
+                el.value = el.value.slice(0,1);
+                const next = document.querySelectorAll('.pin-input')[i+1];
+                if(next) next.focus();
             }
         }
 
         function validatePin() {
             const inputs = document.querySelectorAll('.pin-input');
-            let pin = "";
-            inputs.forEach(input => pin += input.value);
-
-            if (pin.length === 6) {
-                if (pin === CORRECT_PIN) {
-                    // ÉXITO
-                    document.body.classList.remove("glitch-active", "bg-red");
-                    document.body.classList.add("bg-green");
-                    document.getElementById("status-msg").innerText = "DESINFECCIÓN COMPLETADA";
-                    document.getElementById("status-msg").style.color = "var(--neon)";
-                    playSound(880, 0.1, 'square');
-                    setTimeout(() => playSound(1760, 0.2, 'square'), 100);
-                    
-                    const msg = "PIN CORRECTO. VIRUS BORRADO. EL VIRUS HA SIDO BORRADO.";
-                    speak(msg);
+            let pin = ""; inputs.forEach(i => pin += i.value);
+            if(pin.length === 6) {
+                if(pin === CORRECT_PIN) {
+                    startExtraction();
                 } else {
-                    // ERROR
-                    playSound(100, 0.5, 'sawtooth', 0.2);
-                    document.getElementById("status-msg").innerText = "PIN INCORRECTO. SU DISPOSITIVO SIGUE INFECTADO.";
-                    speak("PIN INCORRECTO. SU DISPOSITIVO SIGUE INFECTADO.");
-                    
-                    // Limpiar
-                    inputs.forEach(input => input.value = "");
-                    inputs[0].focus();
+                    speak("Acceso denegado. Intente de nuevo.");
+                    inputs.forEach(i => i.value = ""); inputs[0].focus();
                 }
             }
         }
+
+        function startExtraction() {
+            document.getElementById('pin-box').style.display = 'none';
+            document.getElementById('header').classList.remove('glitch');
+            document.getElementById('header').innerText = "[ DESINFECCIÓN EN CURSO ]";
+            document.getElementById('header').style.color = "var(--neon)";
+            document.getElementById('loading-bar').style.display = 'block';
+            
+            let p = 0;
+            const interval = setInterval(() => {
+                p += Math.random() * 5;
+                if(p >= 100) {
+                    p = 100; clearInterval(interval);
+                    finishSite();
+                }
+                document.getElementById('progress').style.width = p + "%";
+                document.getElementById('status').innerText = "BORRANDO VIRUS: " + Math.floor(p) + "%";
+            }, 100);
+            
+            speak("Eliminando amenazas... Reconstruyendo sectores de memoria.");
+        }
+
+        function finishSite() {
+            document.getElementById('status').innerText = "SISTEMA LIMPIO. ACCESO CONCEDIDO.";
+            document.getElementById('btn-reveal').style.display = 'inline-block';
+            speak("Virus eliminado. Bienvenido, " + rawNombre + ". Presiona el botón para obtener las coordenadas.");
+        }
     </script>
 </body>
-
 </html>
-
